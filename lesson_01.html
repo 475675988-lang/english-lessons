@@ -1049,12 +1049,10 @@
 
             if (stopTimer) clearTimeout(stopTimer);
             
-            const offset = 0.5; 
-            let realStart = start + offset;
-            let duration = (end - realStart) * 1000;
-            
-            if (realStart < 0) realStart = start; 
-            if (duration < 0) duration = (end - start) * 1000; 
+            // --- 关键修正：不设置任何时间偏移，完全依赖字幕时间 ---
+            let realStart = start; 
+            let duration = (end - start) * 1000;
+            // -----------------------------------------------------
 
             player.currentTime = realStart; 
             player.play();
