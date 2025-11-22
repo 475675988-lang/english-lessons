@@ -24,7 +24,7 @@
         .sentence.active { background-color: #ebf3ff; border-left: 5px solid #007AFF; color: #007AFF; font-weight: bold; }
         .time-tag { font-size: 12px; color: #8e8e93; margin-bottom: 4px; display: block; }
         
-        /* 新增样式：加载提示 */
+        /* 加载提示和进度条样式 */
         #loading-msg {
             text-align: center;
             padding: 50px 20px;
@@ -48,6 +48,26 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        #progressBarContainer {
+            width: 80%;
+            height: 12px;
+            background-color: #e5e5ea;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        #progressBarFill {
+            height: 100%;
+            width: 0%;
+            background-color: #34c759;
+            transition: width 0.1s linear;
+        }
+        #progressText {
+            font-size: 14px;
+            color: #007AFF;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body onload="initPlayer()">
@@ -61,16 +81,25 @@
     
     <div id="loading-msg">
         <div class="spinner"></div>
-        音频加载中，请稍候...<br>(正在预下载，这会解决点击卡顿问题)
+        音频预下载中...<br>
+        <div id="progressBarContainer">
+            <div id="progressBarFill"></div>
+        </div>
+        <div id="progressText">0%</div>
+        <span style="font-size:12px; color:#8e8e93; margin-top:5px;">预下载完成后，点击句子将不再卡顿。</span>
     </div>
 
-    <div id="list-container" style="display:none;"></div> <script>
+    <div id="list-container" style="display:none;"></div>
+
+    <script>
         const player = document.getElementById('player');
         const listContainer = document.getElementById('list-container');
         const loadingMsg = document.getElementById('loading-msg');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressText = document.getElementById('progressText');
+        
         let stopTimer = null;
         
-        // 🎯 嵌入的 SRT 数据
         const sentences = [
     {
         "start": 16.15,
@@ -948,31 +977,44 @@
         function initPlayer() {
             document.getElementById('sentenceCount').innerText = sentences.length;
             
-            // 监听 canplaythrough 事件，表示浏览器认为可以从头到尾流畅播放
             player.addEventListener('canplaythrough', audioReady);
+            player.addEventListener('progress', updateProgressBar);
             
-            // 如果音频已经就绪（比如浏览器缓存了），直接调用 audioReady
-            if (player.readyState >= 4) { // HAVE_ENOUGH_DATA
+            if (player.readyState >= 4) { 
                 audioReady();
+            }
+        }
+
+        function updateProgressBar() {
+            if (player.duration > 0) {
+                let percent = 0;
+                if (player.buffered.length > 0) {
+                    const bufferedTime = player.buffered.end(player.buffered.length - 1);
+                    percent = Math.floor((bufferedTime / player.duration) * 100);
+                }
+                
+                progressBarFill.style.width = percent + '%';
+                progressText.innerText = percent + '%';
             }
         }
         
         function audioReady() {
-            // 确保只运行一次
             player.removeEventListener('canplaythrough', audioReady); 
+            player.removeEventListener('progress', updateProgressBar); 
             
-            // 隐藏加载提示，显示列表
-            loadingMsg.style.display = 'none';
-            listContainer.style.display = 'block';
-            
-            renderList();
+            progressBarFill.style.width = '100%';
+            progressText.innerText = '100% - 加载完成！';
+
+            setTimeout(() => { 
+                loadingMsg.style.display = 'none';
+                listContainer.style.display = 'block';
+                renderList();
+            }, 500);
         }
         
-        // ... (其他函数保持不变) ...
-
         function renderList() {
             if (sentences.length === 0) {
-                listContainer.innerHTML = '<div style="text-align:center; color:red; margin-top:50px;">⚠️ 字幕数据为空，请检查 JSON 数据是否粘贴正确。</div>';
+                listContainer.innerHTML = '<div style="text-align:center; color:red; margin-top:50px;">⚠️ 字幕数据为空，请检查 JSON 数据是否正确。</div>';
                 return;
             }
 
